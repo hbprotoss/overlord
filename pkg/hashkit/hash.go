@@ -20,6 +20,11 @@ const (
 // NewRing will create new and need init method.
 func NewRing(des, method string) *HashRing {
 
+	var hash = HashByName(method)
+	return newRingWithHash(hash)
+}
+
+func HashByName(method string) func([]byte) uint {
 	var hash func([]byte) uint
 	switch method {
 
@@ -50,5 +55,5 @@ func NewRing(des, method string) *HashRing {
 	default:
 		hash = hashFnv1a64
 	}
-	return newRingWithHash(hash)
+	return hash
 }

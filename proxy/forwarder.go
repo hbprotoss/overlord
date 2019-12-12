@@ -78,7 +78,12 @@ func newDefaultForwarder(cc *ClusterConfig) proto.Forwarder {
 		panic(err)
 	}
 	conns := newConnections(cc)
-	conns.init(addrs, ans, ws, alias, nil)
+	if cc.BucketCount == 0 {
+		conns.init(addrs, ans, ws, alias, nil)
+	} else {
+		addrs = conns.bucketHash.Nodes()
+		conns.init(addrs, nil, make([]int, len(addrs)), false, nil)
+	}
 	conns.startPinger()
 	f.conns.Store(conns)
 	return f
@@ -187,6 +192,7 @@ type connections struct {
 	aliasMap   map[string]string
 	nodePipe   map[string]*proto.NodeConnPipe
 	ring       *hashkit.HashRing
+	bucketHash *hashkit.BucketHash
 }
 
 func newConnections(cc *ClusterConfig) *connections {
@@ -195,6 +201,7 @@ func newConnections(cc *ClusterConfig) *connections {
 	c.aliasMap = make(map[string]string)
 	c.nodePipe = make(map[string]*proto.NodeConnPipe)
 	c.ring = hashkit.NewRing(cc.HashDistribution, cc.HashMethod)
+	c.bucketHash = hashkit.NewBucketHash(uint(cc.BucketCount), cc.BucketMapping, hashkit.HashByName(cc.HashMethod))
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	return c
 }
@@ -231,7 +238,7 @@ func (c *connections) init(addrs, ans []string, ws []int, alias bool, oldNcps ma
 
 func (c *connections) getPipes(key []byte) (ncp *proto.NodeConnPipe, ok bool) {
 	var addr string
-	if addr, ok = c.ring.GetNode(key); !ok {
+	if addr, ok = c.bucketHash.GetNode(key); !ok {
 		return
 	}
 	if c.alias {
