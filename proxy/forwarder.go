@@ -102,23 +102,27 @@ func (f *defaultForwarder) Forward(msgs []*proto.Message) error {
 		if m.IsBatch() {
 			for _, subm := range m.Batch() {
 				key := subm.Request().Key()
-				ncp, ok := conns.getPipes(f.trimHashTag(key))
+				ncps, ok := conns.getPipes(f.trimHashTag(key))
 				if !ok {
 					m.WithError(ErrForwarderHashNoNode)
 					return errors.WithStack(ErrForwarderHashNoNode)
 				}
 				subm.MarkStartPipe()
-				ncp.Push(subm)
+				for _, ncp := range ncps {
+					ncp.Push(subm)
+				}
 			}
 		} else {
 			key := m.Request().Key()
-			ncp, ok := conns.getPipes(f.trimHashTag(key))
+			ncps, ok := conns.getPipes(f.trimHashTag(key))
 			if !ok {
 				m.WithError(ErrForwarderHashNoNode)
 				return errors.WithStack(ErrForwarderHashNoNode)
 			}
 			m.MarkStartPipe()
-			ncp.Push(m)
+			for _, ncp := range ncps {
+				ncp.Push(m)
+			}
 		}
 	}
 	return nil
@@ -228,25 +232,41 @@ func (c *connections) init(addrs, ans []string, ws []int, alias bool, oldNcps ma
 			c.nodePipe[toAddr] = cnn
 			copyed[toAddr] = true
 		} else {
-			c.nodePipe[toAddr] = proto.NewNodeConnPipe(c.cc.NodeConnections, func() proto.NodeConn {
-				return newNodeConn(c.cc, toAddr)
-			})
+			subAddrs := strings.Split(toAddr, ",")
+			for _, subAddr := range subAddrs {
+				if _, ok := c.nodePipe[subAddr]; !ok {
+					c.nodePipe[subAddr] = proto.NewNodeConnPipe(c.cc.NodeConnections, func() proto.NodeConn {
+						return newNodeConn(c.cc, subAddr)
+					})
+				}
+			}
 		}
 	}
 	return copyed
 }
 
-func (c *connections) getPipes(key []byte) (ncp *proto.NodeConnPipe, ok bool) {
-	var addr string
-	if addr, ok = c.bucketHash.GetNode(key); !ok {
+func (c *connections) getPipes(key []byte) (ncps []*proto.NodeConnPipe, ok bool) {
+	var addrs []string
+	if addrs, ok = c.bucketHash.GetNodes(key); !ok {
 		return
 	}
 	if c.alias {
-		if addr, ok = c.aliasMap[addr]; !ok {
+		var finalAddrs []string
+		for _, addr := range addrs {
+			if addr, ok = c.aliasMap[addr]; !ok {
+				return
+			}
+			finalAddrs = append(finalAddrs, addr)
+		}
+		addrs = finalAddrs
+	}
+	for _, addr := range addrs {
+		var ncp *proto.NodeConnPipe
+		if ncp, ok = c.nodePipe[addr]; !ok {
 			return
 		}
+		ncps = append(ncps, ncp)
 	}
-	ncp, ok = c.nodePipe[addr]
 	return
 }
 

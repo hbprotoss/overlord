@@ -14,7 +14,7 @@ type DistributeHash interface {
 
 type BucketHash struct {
 	bucketCount uint
-	bucketMap   map[uint]string
+	bucketMap   map[uint][]string
 	hash        func([]byte) uint
 
 	powerOf2 bool
@@ -22,7 +22,7 @@ type BucketHash struct {
 
 // bucketMappingConfig: "1,2,3->ip:port"
 func NewBucketHash(bucketCount uint, bucketMappingList []string, hash func([]byte) uint) *BucketHash {
-	bucketMap := make(map[uint]string)
+	bucketMap := make(map[uint][]string)
 	for _, bucketMappingConfig := range bucketMappingList {
 		parts := strings.Split(bucketMappingConfig, "->")
 		if len(parts) != 2 {
@@ -36,7 +36,7 @@ func NewBucketHash(bucketCount uint, bucketMappingList []string, hash func([]byt
 			if bucket >= uint64(bucketCount) {
 				panic("incorrect bucket" + b)
 			}
-			bucketMap[uint(bucket)] = parts[1]
+			bucketMap[uint(bucket)] = strings.Split(parts[1], ",")
 		}
 	}
 
@@ -55,16 +55,26 @@ func (b *BucketHash) DelNode(n string) {
 }
 
 func (b *BucketHash) GetNode(key []byte) (addr string, ok bool) {
+	addrs, ok := b.GetNodes(key)
+	if ok {
+		addr = addrs[0]
+	}
+	return
+}
+
+func (b *BucketHash) GetNodes(key []byte) (addrs []string, ok bool) {
 	value := b.hash(key)
 	bucket := mod(value, b.bucketCount, b.powerOf2)
-	addr, ok = b.bucketMap[bucket]
+	addrs, ok = b.bucketMap[bucket]
 	return
 }
 
 func (b *BucketHash) Nodes() (ret []string) {
 	uniq := make(map[string]interface{})
-	for _, value := range b.bucketMap {
-		uniq[value] = 1
+	for _, addrs := range b.bucketMap {
+		for _, addr := range addrs {
+			uniq[addr] = 1
+		}
 	}
 	for u, _ := range uniq {
 		ret = append(ret, u)
