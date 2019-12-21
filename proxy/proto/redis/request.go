@@ -28,6 +28,7 @@ var (
 
 	reqSupportCmdMap = map[string]struct{}{}
 	reqControlCmdMap = map[string]struct{}{}
+	readCmdsSet      = map[string]int{}
 )
 
 func init() {
@@ -38,6 +39,9 @@ func init() {
 	}
 	for _, key := range controlCmds {
 		reqControlCmdMap[key] = struct{}{}
+	}
+	for _, cmd := range readCmds {
+		readCmdsSet[cmd] = 1
 	}
 }
 
@@ -61,9 +65,10 @@ const (
 
 // Request is the type of a complete redis command
 type Request struct {
-	resp  *resp
-	reply *resp
-	mType mergeType
+	resp   *resp
+	reply  *resp
+	mType  mergeType
+	isRead bool
 }
 
 var reqPool = &sync.Pool{
@@ -140,10 +145,15 @@ func (r *Request) Key() []byte {
 
 // Put the resource back to pool
 func (r *Request) Put() {
+	r.isRead = false
 	r.resp.reset()
 	r.reply.reset()
 	r.mType = mergeTypeNo
 	reqPool.Put(r)
+}
+
+func (r *Request) IsRead() bool {
+	return r.isRead
 }
 
 // RESP return request resp.
@@ -202,6 +212,12 @@ func collapseArray(rs []*resp) (collapsed []string) {
 	collapsedCount := len(rs) - 31
 	collapsed[15] = fmt.Sprintf("...collapsed %d...", collapsedCount)
 	return
+}
+
+func isReadCmd(r *Request) bool {
+	cmd := r.resp.array[0]
+	_, ok := readCmdsSet[string(cmd.data)]
+	return ok
 }
 
 var (

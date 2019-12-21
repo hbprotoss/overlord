@@ -108,8 +108,12 @@ func (f *defaultForwarder) Forward(msgs []*proto.Message) error {
 					return errors.WithStack(ErrForwarderHashNoNode)
 				}
 				subm.MarkStartPipe()
-				for _, ncp := range ncps {
-					ncp.Push(subm)
+				if subm.Request().IsRead() {
+					ncps[0].Push(subm)
+				} else {
+					for _, ncp := range ncps {
+						ncp.Push(subm)
+					}
 				}
 			}
 		} else {
@@ -120,8 +124,12 @@ func (f *defaultForwarder) Forward(msgs []*proto.Message) error {
 				return errors.WithStack(ErrForwarderHashNoNode)
 			}
 			m.MarkStartPipe()
-			for _, ncp := range ncps {
-				ncp.Push(m)
+			if m.Request().IsRead() {
+				ncps[0].Push(m)
+			} else {
+				for _, ncp := range ncps {
+					ncp.Push(m)
+				}
 			}
 		}
 	}

@@ -377,3 +377,7 @@ func (r *MCRequest) String() string {
 func (r *MCRequest) Slowlog() *proto.SlowlogEntry {
 	return nil
 }
+
+func (r *MCRequest) IsRead() bool {
+	panic("not implemented")
+}

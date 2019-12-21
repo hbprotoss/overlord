@@ -20,6 +20,7 @@ type Request interface {
 	Cmd() []byte
 	Key() []byte
 	Put()
+	IsRead() bool
 
 	Slowlogger
 }

@@ -106,6 +106,7 @@ func (pc *proxyConn) decode(msg *proto.Message) (err error) {
 		mid := pc.resp.arraySize / 2
 		for i := 0; i < mid; i++ {
 			r := nextReq(msg)
+			r.isRead = false
 			r.mType = mergeTypeOK
 			r.resp.reset() // NOTE: *3\r\n
 			r.resp.respType = respArray
@@ -125,6 +126,7 @@ func (pc *proxyConn) decode(msg *proto.Message) (err error) {
 	} else if bytes.Equal(cmd, cmdMGetBytes) {
 		for i := 1; i < pc.resp.arraySize; i++ {
 			r := nextReq(msg)
+			r.isRead = true
 			r.mType = mergeTypeJoin
 			r.resp.reset() // NOTE: *2\r\n
 			r.resp.respType = respArray
@@ -151,10 +153,13 @@ func (pc *proxyConn) decode(msg *proto.Message) (err error) {
 			// array resp: key
 			nre2 := r.resp.next() // NOTE: $klen\r\nkey\r\n
 			nre2.copy(pc.resp.array[i])
+
+			r.isRead = isReadCmd(r)
 		}
 	} else {
 		r := nextReq(msg)
 		r.resp.copy(pc.resp)
+		r.isRead = isReadCmd(r)
 	}
 	return
 }
