@@ -109,6 +109,12 @@ func (nc *nodeConn) Read(m *proto.Message) (err error) {
 	return
 }
 
+// todo
+func (nc *nodeConn) Drain(m *proto.Message) (err error) {
+	panic("not implemented")
+	//return nil
+}
+
 func (nc *nodeConn) redirectProcess(m *proto.Message, req *redis.Request, addr string, isAsk bool) (err error) {
 	// next redirect
 	nc.redirects++

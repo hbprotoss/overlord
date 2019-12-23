@@ -111,8 +111,12 @@ func (f *defaultForwarder) Forward(msgs []*proto.Message) error {
 				if subm.Request().IsRead() {
 					ncps[0].Push(subm)
 				} else {
-					for _, ncp := range ncps {
-						ncp.Push(subm)
+					for idx, ncp := range ncps {
+						if idx == 0 {
+							ncp.Push(subm)
+						} else {
+							ncp.PushEx(subm, false)
+						}
 					}
 				}
 			}
@@ -127,8 +131,12 @@ func (f *defaultForwarder) Forward(msgs []*proto.Message) error {
 			if m.Request().IsRead() {
 				ncps[0].Push(m)
 			} else {
-				for _, ncp := range ncps {
-					ncp.Push(m)
+				for idx, ncp := range ncps {
+					if idx == 0 {
+						ncp.Push(m)
+					} else {
+						ncp.PushEx(m, false)
+					}
 				}
 			}
 		}

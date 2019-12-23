@@ -146,6 +146,12 @@ REREADData:
 	return
 }
 
+// todo
+func (n *nodeConn) Drain(m *proto.Message) (err error) {
+	panic("not implemented")
+	//return nil
+}
+
 func (n *nodeConn) Close() error {
 	if atomic.CompareAndSwapInt32(&n.state, opened, closed) {
 		return n.conn.Close()

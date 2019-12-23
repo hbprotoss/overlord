@@ -36,6 +36,7 @@ type ProxyConn interface {
 type NodeConn interface {
 	Write(*Message) error
 	Read(*Message) error
+	Drain(m *Message) error // drain one protocol packs
 	Flush() error
 	Close() error
 	Addr() string

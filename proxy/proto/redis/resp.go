@@ -102,6 +102,10 @@ func (r *resp) next() *resp {
 }
 
 func (r *resp) decode(br *bufio.Reader) (err error) {
+	return r.decodeEx(br, false)
+}
+
+func (r *resp) decodeEx(br *bufio.Reader, drain bool) (err error) {
 	r.reset()
 	// start read
 	line, err := br.ReadLine()
@@ -112,19 +116,25 @@ func (r *resp) decode(br *bufio.Reader) (err error) {
 	r.respType = respType
 	switch respType {
 	case respString, respInt, respError:
-		r.data = append(r.data, line[1:len(line)-2]...)
+		if !drain {
+			r.data = append(r.data, line[1:len(line)-2]...)
+		}
 	case respBulk:
-		err = r.decodeBulk(line, br)
+		err = r.decodeBulk(line, br, drain)
 	case respArray:
-		err = r.decodeArray(line, br)
+		err = r.decodeArray(line, br, drain)
 	default:
-		err = r.decodeInline(line)
+		err = r.decodeInline(line, drain)
 	}
 	return
 }
 
 // decodeInline Handle Telnet requests
-func (r *resp) decodeInline(line []byte) (err error) {
+func (r *resp) decodeInline(line []byte, drain bool) (err error) {
+	if drain {
+		return
+	}
+
 	fields := bytes.Fields(line)
 	flen := len(fields)
 	if flen == 0 {
@@ -146,7 +156,7 @@ func (r *resp) decodeInline(line []byte) (err error) {
 	return
 }
 
-func (r *resp) decodeBulk(line []byte, br *bufio.Reader) (err error) {
+func (r *resp) decodeBulk(line []byte, br *bufio.Reader, drain bool) (err error) {
 	ls := len(line)
 	bulkLengthBytes := line[1 : ls-2]
 	bulkLength, err := conv.Btoi(bulkLengthBytes)
@@ -165,11 +175,13 @@ func (r *resp) decodeBulk(line []byte, br *bufio.Reader) (err error) {
 	} else if err != nil {
 		return
 	}
-	r.data = append(r.data, data[1:len(data)-2]...)
+	if !drain {
+		r.data = append(r.data, data[1:len(data)-2]...)
+	}
 	return
 }
 
-func (r *resp) decodeArray(line []byte, br *bufio.Reader) (err error) {
+func (r *resp) decodeArray(line []byte, br *bufio.Reader, drain bool) (err error) {
 	ls := len(line)
 	arrayLengthBytes := line[1 : ls-2]
 	arrayLength, err := conv.Btoi(arrayLengthBytes)
@@ -180,11 +192,13 @@ func (r *resp) decodeArray(line []byte, br *bufio.Reader) (err error) {
 		r.data = r.data[:0]
 		return
 	}
-	r.data = append(r.data, arrayLengthBytes...)
+	if !drain {
+		r.data = append(r.data, arrayLengthBytes...)
+	}
 	mark := br.Mark()
 	for i := 0; i < int(arrayLength); i++ {
 		nre := r.next()
-		if err = nre.decode(br); err != nil {
+		if err = nre.decodeEx(br, drain); err != nil {
 			br.AdvanceTo(mark)
 			br.Advance(-ls)
 			return

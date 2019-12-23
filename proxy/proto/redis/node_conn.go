@@ -93,6 +93,14 @@ func (nc *nodeConn) Flush() error {
 }
 
 func (nc *nodeConn) Read(m *proto.Message) (err error) {
+	return nc.read(m, false)
+}
+
+func (nc *nodeConn) Drain(m *proto.Message) (err error) {
+	return nc.read(m, true)
+}
+
+func (nc *nodeConn) read(m *proto.Message, drain bool) (err error) {
 	if nc.Closed() {
 		err = errors.WithStack(ErrNodeConnClosed)
 		return
@@ -106,7 +114,7 @@ func (nc *nodeConn) Read(m *proto.Message) (err error) {
 		return
 	}
 	for {
-		if err = req.reply.decode(nc.br); err == bufio.ErrBufferFull {
+		if err = req.reply.decodeEx(nc.br, drain); err == bufio.ErrBufferFull {
 			if err = nc.br.Read(); err != nil {
 				err = errors.WithStack(err)
 				return
