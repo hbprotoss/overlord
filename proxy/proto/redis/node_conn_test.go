@@ -20,6 +20,10 @@ import (
 type mockCmd struct {
 }
 
+func (c *mockCmd) IsRead() bool {
+	return false
+}
+
 func (*mockCmd) CmdString() string {
 	return ""
 }

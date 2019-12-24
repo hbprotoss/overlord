@@ -16,6 +16,10 @@ type mockNodeConn struct {
 	err        error
 }
 
+func (n *mockNodeConn) Drain(m *Message) error {
+	return nil
+}
+
 func (n *mockNodeConn) Addr() string {
 	return "mock"
 }
@@ -39,6 +43,10 @@ func (n *mockNodeConn) Close() error {
 }
 
 type mockRequest struct{}
+
+func (r *mockRequest) IsRead() bool {
+	return false
+}
 
 func (*mockRequest) CmdString() string { return "" }
 func (*mockRequest) Cmd() []byte       { return nil }
