@@ -32,6 +32,10 @@ var (
 	nullDataBytes = []byte("-1")
 )
 
+var (
+	respBlackHole = &resp{}
+)
+
 // RESP is resp export type.
 type RESP = resp
 
@@ -197,7 +201,14 @@ func (r *resp) decodeArray(line []byte, br *bufio.Reader, drain bool) (err error
 	}
 	mark := br.Mark()
 	for i := 0; i < int(arrayLength); i++ {
-		nre := r.next()
+		var nre *resp
+		if drain {
+			// in order to consumer data from br
+			nre = respBlackHole
+			nre.reset()
+		} else {
+			nre = r.next()
+		}
 		if err = nre.decodeEx(br, drain); err != nil {
 			br.AdvanceTo(mark)
 			br.Advance(-ls)
